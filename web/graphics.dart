@@ -21,14 +21,14 @@ class Graphics {
     bufferContext.clearRect(0, 0, width, height);
   }
 
-  void drawPolygon(Polygon polygon, Vector position) {
+  void drawPolygon(Polygon polygon, Vector position, String color) {
     bufferContext.beginPath();
     bufferContext.moveTo(position.x + polygon.points[0].x, position.y + polygon.points[0].y);
     for (int i = 1; i < polygon.points.length; i++) {
       bufferContext.lineTo(position.x + polygon.points[i].x, position.y + polygon.points[i].y);
     }
     bufferContext.closePath();
-    bufferContext.fillStyle = polygon.color;
+    bufferContext.fillStyle = color;
     bufferContext.fill();
   }
 
@@ -57,9 +57,7 @@ class Vector {
 
   num x, y;
 
-  Vector(this.x, this.y) {
-
-  }
+  Vector(this.x, this.y);
 
   Vector.fromAngle(num angle, num length) {
     x = cos(angle) * length;
@@ -82,6 +80,10 @@ class Vector {
     num l = length();
     x /= l;
     y /= l;
+  }
+
+  Vector copy() {
+    return new Vector(this.x, this.y);
   }
 
   String toString() => 'Vector($x, $y)';
@@ -116,22 +118,21 @@ class Intersection extends Vector {
 
   Intersection(Vector point, this.parameter) : super(point.x, point.y);
 
-  operator +(Vector other) => new Intersection(this + other, parameter);
+  operator +(Vector other) => new Intersection(new Vector(x + other.x, y + other.y), parameter);
 
-  operator -(Vector other) => new Intersection(this - other, parameter);
+  operator -(Vector other) => new Intersection(new Vector(x - other.x, y - other.y), parameter);
 
 }
 
 class Polygon {
 
   List<Vector> points;
-  String color;
 
-  Polygon() {
-    ponts = new List<Vector>();
+  Polygon(this.points);
+
+  Polygon.empty() {
+    points = new List<Vector>();
   }
-
-  Polygon(this.points, this.color);
 
   num area() {
     num a = 0;
@@ -142,8 +143,8 @@ class Polygon {
   }
 
   List<Polygon> split(Vector position, Line line) {
-    List<Vector> _points;
-    List<Intersection> _intersections;
+    List<Vector> _points = new List<Vector>();
+    List<Intersection> _intersections = new List<Intersection>();
     for (int i = 0; i < points.length; i++) {
       _points.add(points[i]);
       Vector p1, p2;
@@ -154,30 +155,49 @@ class Polygon {
         p1 = position + points[i];
         p2 = position + points[i + 1];
       }
-      Intersection p = line.intersectionWith(new Line.passingThrough(p1, p2)) - position;
+      Intersection p = line.intersectionWith(new Line.passingThrough(p1, p2));
       if ((p.x - p1.x).sign == -(p.x - p2.x).sign) {
-        _points.add(p);
-        _intersections.add(p);
+        Intersection pp = p - position;
+        _points.add(pp);
+        _intersections.add(pp);
       }
     }
+    if (_intersections.length == 0) {
+      return null;
+    }
     _intersections.sort((a, b) => a.parameter.compareTo(b.parameter));
-    List<List<Intersection>> _intersectionPairs;
+    List<List<Intersection>> _intersectionPairs = new List<List<Intersection>>();
     for (int i = 0; i < _intersections.length; i += 2) {
       _intersectionPairs.add([ _intersections[i], _intersections[i + 1]]);
     }
-    List<Polygon> _outputs;
-    List<Vector> _crossbacks;
+    List<Polygon> _outputs = new List<Polygon>();
+    List<Vector> _crossbacks = new List<Vector>();
     int _current;
-    _outputs.add(new Polygon());
+    _outputs.add(new Polygon.empty());
+    _crossbacks.add(null);
     _current = 0;
     for (int i = 0; i < _points.length; i++) {
-      _current.points.add(_points[i]);
+      _outputs[_current].points.add(_points[i]);
       if (_intersections.contains(_points[i])) {
         for (int j = 0; j < _intersectionPairs.length; j++) {
-
+          int _partnerIndex = 1 - _intersectionPairs[j].indexOf(_points[i]);
+          if (_partnerIndex != 2) {
+            _crossbacks[_current] = _intersectionPairs[j][_partnerIndex];
+            break;
+          }
         }
+        int _crossbackIndex = _crossbacks.indexOf(_points[i]);
+        if (_crossbackIndex != -1) {
+          _current = _crossbackIndex;
+        } else {
+          _outputs.add(new Polygon.empty());
+          _crossbacks.add(_points[i]); // necessary? null?
+          _current = _outputs.length - 1;
+        }
+        _outputs[_current].points.add(_points[i]);
       }
     }
+    return _outputs;
   }
 
 }
