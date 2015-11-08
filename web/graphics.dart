@@ -56,10 +56,9 @@ class Graphics {
 class Vector {
 
   num x, y;
-  String tag;
 
   Vector(this.x, this.y) {
-    tag = null;
+
   }
 
   Vector.fromAngle(num angle, num length) {
@@ -101,12 +100,25 @@ class Line {
     }
   }
 
-  Vector pointAt(num parameter) => initial + direction * parameter;
+  Intersection pointAt(num parameter) => new Intersection(initial + direction * parameter, parameter);
 
   Vector intersectionWith(Line other) {
-    num p = (direction.y * initial.x - direction.y * other.initial.x + direction.x * other.initial.y - direction.x * initial.y) / (direction.y * other.direction.x - direction.x * other.direction.y);
-    return other.pointAt(p);
+    num p = (other.direction.y * other.initial.x - other.direction.y * initial.x + other.direction.x * initial.y - other.direction.x * other.initial.y) / (other.direction.y * direction.x - other.direction.x * direction.y);
+    return pointAt(p);
   }
+
+}
+
+class Intersection extends Vector {
+
+  num parameter;
+  int edge;
+
+  Intersection(Vector point, this.parameter) : super(point.x, point.y);
+
+  operator +(Vector other) => new Intersection(this + other, parameter);
+
+  operator -(Vector other) => new Intersection(this - other, parameter);
 
 }
 
@@ -114,6 +126,10 @@ class Polygon {
 
   List<Vector> points;
   String color;
+
+  Polygon() {
+    ponts = new List<Vector>();
+  }
 
   Polygon(this.points, this.color);
 
@@ -123,6 +139,45 @@ class Polygon {
       a += (points[i].x - points[i - 1].x) * (points[i - 1].y + points[i].y) / 2;
     }
     return a.abs();
+  }
+
+  List<Polygon> split(Vector position, Line line) {
+    List<Vector> _points;
+    List<Intersection> _intersections;
+    for (int i = 0; i < points.length; i++) {
+      _points.add(points[i]);
+      Vector p1, p2;
+      if (i == points.length - 1) {
+        p1 = position + points[i];
+        p2 = position + points[0];
+      } else {
+        p1 = position + points[i];
+        p2 = position + points[i + 1];
+      }
+      Intersection p = line.intersectionWith(new Line.passingThrough(p1, p2)) - position;
+      if ((p.x - p1.x).sign == -(p.x - p2.x).sign) {
+        _points.add(p);
+        _intersections.add(p);
+      }
+    }
+    _intersections.sort((a, b) => a.parameter.compareTo(b.parameter));
+    List<List<Intersection>> _intersectionPairs;
+    for (int i = 0; i < _intersections.length; i += 2) {
+      _intersectionPairs.add([ _intersections[i], _intersections[i + 1]]);
+    }
+    List<Polygon> _outputs;
+    List<Vector> _crossbacks;
+    int _current;
+    _outputs.add(new Polygon());
+    _current = 0;
+    for (int i = 0; i < _points.length; i++) {
+      _current.points.add(_points[i]);
+      if (_intersections.contains(_points[i])) {
+        for (int j = 0; j < _intersectionPairs.length; j++) {
+
+        }
+      }
+    }
   }
 
 }
